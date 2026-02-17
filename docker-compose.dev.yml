@@ -1,0 +1,76 @@
+acuversion: '3.8'
+
+services:
+  # PostgreSQL Database - Using existing container
+  # If you need a new PostgreSQL, uncomment the postgres service below
+  # postgres:
+  #   image: postgres:16-alpine
+  #   container_name: smartbooking-db
+  #   environment:
+  #     POSTGRES_USER: roompilot
+  #     POSTGRES_PASSWORD: roompilot123
+  #     POSTGRES_DB: roompilot
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   ports:
+  #     - "5433:5432"  # Changed to avoid conflict
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U roompilot"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #   networks:
+  #     - smartbooking-network
+
+  # FastAPI Backend (Development)
+  backend:
+    build:
+      context: ../migration-backend
+      dockerfile: Dockerfile.dev
+    container_name: smartbooking-backend
+    environment:
+      DATABASE_URL: postgresql://roompilot:roompilot123@host.docker.internal:5432/roompilot
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
+      DEBUG: "true"
+      CORS_ORIGINS: '["http://localhost:5173","http://localhost:3000","http://localhost:8000"]'
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../migration-backend:/app
+      - /app/.venv
+    # depends_on:
+    #   postgres:
+    #     condition: service_healthy
+    networks:
+      - smartbooking-network
+    command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
+    restart: unless-stopped
+
+  # React Frontend (Development) – API calls go to same origin; Vite proxies /api to backend
+  frontend:
+    build:
+      context: ../migration-frontend
+      dockerfile: Dockerfile.dev
+    container_name: smartbooking-frontend
+    environment:
+      VITE_API_BASE_URL: ""           # relative URLs so browser hits localhost:5173
+      VITE_PROXY_TARGET: http://backend:8000   # Vite dev server proxies /api to backend container
+    ports:
+      - "5173:5173"
+    volumes:
+      - ../migration-frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - smartbooking-network
+    command: sh -c "npm install && npm run dev"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  smartbooking-network:
+    driver: bridge

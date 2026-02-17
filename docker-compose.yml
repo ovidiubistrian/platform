@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15
+    container_name: smartbooking-db
+    environment:
+      POSTGRES_USER: ${DB_USER:-smartbooking}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-smartbooking}
+      POSTGRES_DB: ${DB_NAME:-smartbooking}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - smartbooking-network
+
+  # FastAPI Backend
+  backend:
+    build:
+      context: ../migration-backend
+      dockerfile: Dockerfile
+    container_name: smartbooking-backend
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-smartbooking}:${DB_PASSWORD:-smartbooking}@postgres:5432/${DB_NAME:-smartbooking}
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+      DEBUG: ${DEBUG:-false}
+      CORS_ORIGINS: "http://localhost:5173,http://localhost:3000"
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      MAILGUN_API_KEY: ${MAILGUN_API_KEY:-}
+      MAILGUN_DOMAIN: ${MAILGUN_DOMAIN:-}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - ../migration-backend:/app
+      - backend_uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - smartbooking-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # React Frontend (nginx serves build; /api/* is proxied to backend)
+  frontend:
+    build:
+      context: ../migration-frontend
+      dockerfile: Dockerfile
+      args:
+        # Empty = relative URLs so browser sends /api to same origin; nginx proxies to backend
+        VITE_API_BASE_URL: ""
+    container_name: smartbooking-frontend
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"
+    volumes:
+      - ../migration-frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - smartbooking-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  backend_uploads:
+    driver: local
+
+networks:
+  smartbooking-network:
+    driver: bridge
+
