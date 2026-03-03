@@ -20,7 +20,37 @@ migration-frontend/            # React Frontend
 
 ## 🚀 Quick Start
 
-### Development (Docker)
+### Rulare direct în Docker
+
+**Variantă 1 – tot în Docker (PostgreSQL + Backend + Frontend):**
+
+```bash
+cd 360Booking/migration-platform
+docker compose up -d
+```
+
+- Frontend: **http://localhost:80** (sau portul din `FRONTEND_PORT` din `.env`)
+- Backend/API: **http://localhost:8000**
+- Docs: **http://localhost:8000/docs**
+
+Oprești cu: `docker compose down`.
+
+**Prima rulare:** asigură-te că ai `.env` în `migration-platform/` (vezi secțiunea Configuration). După ce containerele sunt up, rulează migrațiile în containerul backend:  
+`docker compose exec backend alembic upgrade head`
+
+**Variantă 2 – development (hot reload):**
+
+```bash
+cd 360Booking/migration-platform
+docker compose -f docker-compose.dev.yml up -d
+```
+
+- Frontend: **http://localhost:5173**
+- Backend: **http://localhost:8000**
+
+*Notă:* `docker-compose.dev.yml` folosește un PostgreSQL de pe host (`host.docker.internal:5432`). Fie ai deja Postgres rulând local, fie pornești doar DB-ul cu `./scripts/start-local.sh` sau cu `docker compose up -d postgres` din `docker-compose.yml`.
+
+### Development (Docker) – script
 
 ```bash
 cd migration-platform
