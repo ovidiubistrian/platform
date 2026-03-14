@@ -1,0 +1,44 @@
+# ── Global options ──
+{
+	email admin@360booking.ro
+	on_demand_tls {
+		ask http://localhost:8000/api/v1/caddy/check-domain
+	}
+}
+
+# ── Import all tenant custom-domain configs ──
+import /etc/caddy/tenants/*.caddy
+
+# ── Shared site block (reused via import) ──
+(site-common) {
+	encode gzip
+
+	handle /api/* {
+		reverse_proxy localhost:8000
+	}
+	handle /uploads/* {
+		reverse_proxy localhost:8000
+	}
+	handle {
+		reverse_proxy localhost:3000
+	}
+
+	header {
+		X-Frame-Options "SAMEORIGIN"
+		X-Content-Type-Options "nosniff"
+		X-XSS-Protection "1; mode=block"
+	}
+}
+
+# ── Main domain ──
+360booking.ro {
+	import site-common
+}
+
+# ── Wildcard subdomains ──
+*.360booking.ro {
+	tls {
+		on_demand
+	}
+	import site-common
+}
