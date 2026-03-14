@@ -6,7 +6,7 @@
 	}
 }
 
-# ── Import all tenant custom-domain configs ──
+# ── Import all tenant configs (subdomains + custom domains) ──
 import /etc/caddy/tenants/*.caddy
 
 # ── Shared site block (reused via import) ──
@@ -32,13 +32,5 @@ import /etc/caddy/tenants/*.caddy
 
 # ── Main domain ──
 360booking.ro {
-	import site-common
-}
-
-# ── Wildcard subdomains ──
-*.360booking.ro {
-	tls {
-		on_demand
-	}
 	import site-common
 }
