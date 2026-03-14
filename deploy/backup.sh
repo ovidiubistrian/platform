@@ -10,7 +10,12 @@ S3_BUCKET="360booking-backups"
 S3_ENDPOINT="https://nbg1.your-objectstorage.com"
 S3_REGION="nbg1"
 
-# Read S3 credentials
+# Load postgres credentials from .env (do this FIRST, before S3 creds)
+set -a
+source /opt/360booking/.env
+set +a
+
+# Read S3 credentials (AFTER .env so they aren't overridden by empty .env values)
 S3_KEY=$(grep '^key:' "$CREDENTIALS" | awk '{print $2}')
 S3_SECRET=$(grep '^secret:' "$CREDENTIALS" | awk '{print $2}')
 
@@ -20,11 +25,6 @@ export AWS_SECRET_ACCESS_KEY="$S3_SECRET"
 s3cmd() {
     aws "$@" --endpoint-url "$S3_ENDPOINT" --region "$S3_REGION"
 }
-
-# Load postgres credentials from .env
-set -a
-source /opt/360booking/.env
-set +a
 DB_USER="${POSTGRES_USER:-booking360}"
 DB_NAME="${POSTGRES_DB:-booking360}"
 
